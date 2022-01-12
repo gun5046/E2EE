@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<h1 th:text = "${user_id}"></h1>
+<input th:value="${user_id}" th:text="${user_id}" id= "id" type="hidden"/>
+<div id="user_list">
+</div>
+
+</body>
+<script th:inline="javascript" >
+/*<![ CDATA[ */
+let user_id =  [[${user_id}]];
+/* ]]> */
+let user_list = document.getElementById("user_list");
+url = "http://localhost:8080/msg/list?id="+user_id;
+let promise = fetch(url).then(response => (response.json())
+		.then(data=>{
+			for(let i=0; i<data.length; i++){
+				let formTag = document.createElement("form");
+				let addSender=document.createElement("p");
+				let inputSender = document.createElement("input");
+				let addSendMsg = document.createElement("button");
+				let parentbody = document.getElementById("user_list");
+				let sender = document.createElement("input");
+				sender.setAttribute("type","hidden");
+				sender.setAttribute("value",user_id);
+				sender.setAttribute("name", "sender");
+				formTag.setAttribute("action","/msg/chat");
+				formTag.setAttribute("method","post");
+				formTag.setAttribute("th:object","${ChatDto}");
+				inputSender.setAttribute("type","hidden");
+				inputSender.setAttribute("name","receiver");
+				inputSender.setAttribute("value",data[i]);
+				addSender.innerHTML = data[i];
+				addSendMsg.setAttribute("type","submit");
+				addSendMsg.innerHTML = "메시지보내기";
+				formTag.appendChild(sender);
+				formTag.appendChild(inputSender);
+				formTag.appendChild(addSender);
+				formTag.appendChild(addSendMsg);
+				parentbody.appendChild(formTag);
+				
+			}
+
+		})
+		
+);
+
+</script>
+</html>

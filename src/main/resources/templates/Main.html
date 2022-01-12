@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://thymeleaf.org">
+<head>
+
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    <h1>ChatWithE2EE</h1>
+    <h2>Login</h2>
+    <p>아이디 입력</p>
+    <form method = "get" th:action="@{/msg}">
+        <input type="text" name="id" placeholder="ID"/>
+        <button type="submit">로그인</button>
+    </form>
+</body>
+</html>
