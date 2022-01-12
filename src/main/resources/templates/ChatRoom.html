@@ -7,17 +7,45 @@
             src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script
             src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script
+            src="../static/jsencrypt-master/bin/jsencrypt.min.js"></script>
 </head>
 <body>
 <h1 th:text="${receiver}"></h1>
-
+<script src=""></script>
 <p>createKey</p>
-<input type="file" id="create_key"/>
-<p>GetPublicKey</p>
-<input type="file" id="public_key"/>
-<p>GetPrivateKey</p>
-<input type="file" id="private_key"/>
+<a href="http://127.0.0.1:8080/static/msvc-2015-openssl.cmd">실행</a>
+<div>
+    <p>GetPublicKey & PrivateKey</p>
+    <p>Private</p>
+    <input type="file" id="privateKey"/>
+    <button type="submit" id ="createPriKey">Open</button>
+    <p>Public</p>
+    <input type="file" id="publicKey" />
+    <button type="submit" id ="createPubKey">Open</button>
+</div>
+<div id = "output">
+    <textarea id = "private" cols="70" rows="20">
 
+    </textarea>
+    <textarea id = "public" cols="70" rows="20">
+
+    </textarea>
+</div>
+
+<label for="plainText">평문</label><br />
+
+<input type="text" id="plainText" style="width:400px;" /><br />
+
+<label for="encryptedText">암호화된 문장</label><br />
+
+<input type="text" id="encryptedText" style="width:400px;" /><br />
+
+<label for="decryptedText">복호화된 문장</label><br />
+
+<input type="text" id="decryptedText" style="width:400px;" /><br />
+
+<button id="encrypt">암호화</button><button id="decrypt">복호화</button>
 
 <br/><br/>
 <div class="container">
@@ -41,144 +69,185 @@
 
 <script th:inline="javascript">
     //javascript에서 thymeleaf 변수 사용할떄 -> /*[[${room_name}]]*/
-	/*<![ CDATA[ */
+    /*<![ CDATA[ */
     let sender=[[${sender}]];
     let receiver=[[${receiver}]];
     /* ]]> */
 
+    let msgEncrypt = new JSEncrypt();
+    let msgDecrypt = new JSEncrypt();
+
     let chatMessage = {
-    sender : "",
-    message : "",
-    type : "",
-    receiver :""
-};
-    
-    function createKey(e){
-    	var file = e.target.files[0];
-    	if(!file){
-    		return;
-    	}
-    	var reader = new FileReader();
-    	reader.onload = function(e){
-    		var contents = e.target.result;
-    		console.log(contents);
-    	}
-    }
-    
-    document.getElementById('create_key').addEventListener('change', createKey, false);
-    
-    
-    
-    
-    
-let c_data;
+        sender : "",
+        message : "",
+        type : "",
+        receiver :""
+    };
+    /////////////////////////////////////암호, 복호화 키 생성
+    let priKey = document.getElementById("private");
+    let pubKey = document.getElementById("public");
+    let PriFile = document.getElementById("privateKey");
+    let PubFile = document.getElementById("publicKey");
+    let submitPri = document.getElementById("createPriKey");
+    let submitPub = document.getElementById("createPubKey");
+    submitPri.addEventListener("click",function(){
+        let items='';
+        let reader = new FileReader();
+        let data = PriFile.files[0];
+        reader.addEventListener("load",function(){
+            priKey.value=reader.result;
+        })
+        reader.addEventListener("error",function(){
+            console.log(reader.error.message);
+        })
+        reader.readAsText(data);
+    });
+    submitPub.addEventListener("click",function(){
+        let items='';
+        let reader = new FileReader();
+        let data = PubFile.files[0];
+        reader.addEventListener("load",function(){
+            pubKey.value=reader.result;
 
-let sendMsg= document.getElementById('sendMsg');
-let sendBtn = document.getElementById("sendBtn");
+        })
+        reader.addEventListener("error",function(){
+            console.log(reader.error.message);
+        })
+    });
+    document.getElementById("encrypt").addEventListener("click",function(){
+        let crypt = new JSEncrypt();
+        crypt.setPublicKey(pubKey.value);
+
+        let plainText=document.getElementById("plainText").value;
+        let encryptedText= crypt.encrypt(plainText);
+        document.getElementById("encryptedText").value=encryptedText;
+    })
+    document.getElementById("decrypt").addEventListener("click",function(){
+        let crypt = new JSEncrypt();
+        crypt.setPrivateKey(priKey.value);
+        let encryptedText= document.getElementById("encryptedText").value;
+        let decryptedText= crypt.decrypt(encryptedText);
+        document.getElementById("decryptedText").value=decryptedText;
+    })
+    //Text 암호화, 복호화 과정
+    /////////////////////////////////////////////////////////////////
+
+    let c_data;
+
+    let sendMsg= document.getElementById('sendMsg');
+    let sendBtn = document.getElementById("sendBtn");
 
 
-window.onload = function() {
+    window.onload = function() {
 
-    let socket = new SockJS("/ws/chat");
-    let stompClient = Stomp.over(socket);
-	
+        let socket = new SockJS("/ws/chat");
+        let stompClient = Stomp.over(socket);
 
-	
-    stompClient.connect({}, onConnected, connectError);
+        stompClient.connect({}, onConnected, connectError);
 
-    sendMsg.addEventListener('keydown',function(event){
-        if(event.keyCode==13){
+        sendMsg.addEventListener('keydown',function(event){
+            if(event.keyCode==13){
+                sendMessage(sendMsg.value);
+            }
+        })
+        //onKeyDown(keycode값),  onKeyPress(ASCII값) :  키를누르면 이벤트발생후 문자 입력, onKeyUp : 키를 누르면 문자입력후 이벤트발생
+        //keydown : 누르는 순간 발생 keyup : 눌렀다 떼는 순간 발생
+        sendBtn.addEventListener('click',function(event){
+            console.log(sendMsg.value);
             sendMessage(sendMsg.value);
+        })
+
+        function onConnected() {
+            stompClient.subscribe('/topic/'+receiver, responseMessage); // subscribe 파라미터 : 1. 구독할 토픽 url 2. 콜백메소드
+            stompClient.subscribe('topic/'+sender, responseMy);
+            chatMessage.sender = sender;
+            chatMessage.message = " 님이 입장하였습니다.";
+            chatMessage.type = "Enter";
+            chatMessage.receiver = receiver;
+            let cmsg= JSON.stringify(chatMessage);
+
+
+            stompClient.send("/app/chat.send",{"Type" : "Enter"},cmsg);// send 파라미터 : 1. 매핑url, 2. header정보(content-type 등) 3. 보낼 message
+            console.log("보냄");
         }
-    })
-    //onKeyDown(keycode값),  onKeyPress(ASCII값) :  키를누르면 이벤트발생후 문자 입력, onKeyUp : 키를 누르면 문자입력후 이벤트발생
-    //keydown : 누르는 순간 발생 keyup : 눌렀다 떼는 순간 발생
-    sendBtn.addEventListener('click',function(event){
-        console.log(sendMsg.value);
-        sendMessage(sendMsg.value);
-    })
 
-    function onConnected() {
-        stompClient.subscribe('/topic/'+receiver, responseMessage); // subscribe 파라미터 : 1. 구독할 토픽 url 2. 콜백메소드
-        stompClient.subscribe('topic/'+sender, responseMy);
-        chatMessage.sender = sender;
-        chatMessage.message = " 님이 입장하였습니다.";
-        chatMessage.type = "Enter";
-        chatMessage.receiver = receiver;
-        let cmsg= JSON.stringify(chatMessage);
+        function sendMessage(msg){
+            chatMessage.sender =sender;
+            chatMessage.message = msg;
+            chatMessage.type = "Chat";
+            chatMessage.receiver = receiver;
+            let cmsg= JSON.stringify(chatMessage);
 
+            stompClient.send("/app/chat.send", {"Type" : "Send"}, cmsg);
+            console.log("보냄");
 
-        stompClient.send("/app/chat.send",{"Type" : "Enter"},cmsg);// send 파라미터 : 1. 매핑url, 2. header정보(content-type 등) 3. 보낼 message
-        console.log("보냄");
-    }
-
-    function sendMessage(msg){
-        chatMessage.sender =sender;
-        chatMessage.message = msg;
-        chatMessage.type = "Chat";
-        chatMessage.receiver = receiver;
-        let cmsg= JSON.stringify(chatMessage);
-
-        stompClient.send("/app/chat.send", {"Type" : "Send"}, cmsg);
-        console.log("보냄");
-
-    }
-	
-
-    function connectError() {
-        alert("오류");
-    }
-    function disConnected() {
-        console.log("연결이 종료되었습니다.");
-    }
-    function responseMessage(response) {
-
-        let addSender=document.createElement("td");
-        let addMsg =document.createElement("td");
-        let parentTbody = document.getElementById("msg_box");
-        let addBox=document.createElement("tr");
-        let data=JSON.parse(response.body);
-        if(data.type=="Enter"){
-            //스타일 변경 중앙정렬
         }
-        if(data.sender==sender){
-            console.log("me");
-            //스타일 변경
-        }
-        addSender.innerHTML = data.sender;
-        addMsg.innerHTML = data.message;
-        addMsg.style.color="red";
-        parentTbody.appendChild(addBox);
-        parentTbody.appendChild(addSender);
-        parentTbody.appendChild(addMsg);
+        function sendEncryptionKey(key){
+            chatMessage.sender = sender;
+            chatMessage.message= key;
+            chatMessage.type="key";
+            chatMessage.receiver = receiver;
+            let cmsg =JSON.stringify(chatMessage);
 
-        console.log("수신");
+            stompClient.send("/app/chat.send", {"Type" : "Key"},cmsg);
+            console.log("key");
+
+        }
+
+        function connectError() {
+            alert("오류");
+        }
+        function disConnected() {
+            console.log("연결이 종료되었습니다.");
+        }
+        function responseMessage(response) {
+
+            let addSender=document.createElement("td");
+            let addMsg =document.createElement("td");
+            let parentTbody = document.getElementById("msg_box");
+            let addBox=document.createElement("tr");
+            let data=JSON.parse(response.body);
+            if(data.type=="Enter"){
+                //스타일 변경 중앙정렬
+            }
+            if(data.sender==sender){
+                console.log("me");
+                //스타일 변경
+            }
+            addSender.innerHTML = data.sender;
+            addMsg.innerHTML = data.message;
+            addMsg.style.color="red";
+            parentTbody.appendChild(addBox);
+            parentTbody.appendChild(addSender);
+            parentTbody.appendChild(addMsg);
+
+            console.log("수신");
+        }
+
+        function responseMy(response) {
+
+            let addSender=document.createElement("td");
+            let addMsg =document.createElement("td");
+            let parentTbody = document.getElementById("msg_box");
+            let addBox=document.createElement("tr");
+            let data=JSON.parse(response.body);
+            if(data.type=="Enter"){
+                //스타일 변경 중앙정렬
+            }
+            if(data.sender==sender){
+                console.log("me");
+                //스타일 변경
+            }
+            addSender.innerHTML = data.sender;
+            addMsg.innerHTML = data.message;
+            addMsg.style.color="blue";
+            parentTbody.appendChild(addBox);
+            parentTbody.appendChild(addSender);
+            parentTbody.appendChild(addMsg);
+
+            console.log("수신");
+        }
     }
-    
-    function responseMy(response) {
-
-        let addSender=document.createElement("td");
-        let addMsg =document.createElement("td");
-        let parentTbody = document.getElementById("msg_box");
-        let addBox=document.createElement("tr");
-        let data=JSON.parse(response.body);
-        if(data.type=="Enter"){
-            //스타일 변경 중앙정렬
-        }
-        if(data.sender==sender){
-            console.log("me");
-            //스타일 변경
-        }
-        addSender.innerHTML = data.sender;
-        addMsg.innerHTML = data.message;
-        addMsg.style.color="blue";
-        parentTbody.appendChild(addBox);
-        parentTbody.appendChild(addSender);
-        parentTbody.appendChild(addMsg);
-
-        console.log("수신");
-    }
-}
 
 </script>
 </body>
