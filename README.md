@@ -30,6 +30,10 @@
   + Visual Studio Community (2019 사용)
 ```
 ### 과정
+![1](https://user-images.githubusercontent.com/48385816/149459453-58c079aa-6e96-456f-93a4-6c8bfb31f0f2.png)
+
+
+
 
 ![image](https://user-images.githubusercontent.com/48385816/149458320-97e8e91f-5760-479d-bdf2-ff9736c13090.png)
 
