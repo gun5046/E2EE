@@ -3,6 +3,7 @@ package com.noom.controller;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -40,7 +41,7 @@ public class ChatController {
     }
 	
 	@GetMapping("/list")
-	public List<String> getUserList(@RequestParam String id){
+	public Set<String> getUserList(@RequestParam String id){
 		return chatService.getUserList(id);
 	}
 	
@@ -57,13 +58,15 @@ public class ChatController {
     @MessageMapping("/chat.send")
     public void messgeSend(ChatMessage chatMessage) {
     	System.out.println(chatMessage.getMessage());
-    	System.out.println(chatMessage.getReceiver());
-    	System.out.println(chatMessage.getSender());
-    	System.out.println(chatMessage.getType());
     	simp.convertAndSend("/topic/"+chatMessage.getSender(),chatMessage);
     	simp.convertAndSend("/topic/"+chatMessage.getReceiver(),chatMessage);
     }
-  
+
+    @MessageMapping("/key.send")
+    public void keySend(ChatMessage cm){
+
+        simp.convertAndSend("/topic/"+cm.getSender(),cm);
+    }
 }
 
 

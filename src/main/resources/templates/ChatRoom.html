@@ -31,6 +31,9 @@
     <textarea id = "public" cols="70" rows="20">
 
     </textarea>
+    <textarea id = "yourPub" cols="70" rows="20">
+
+    </textarea>
 </div>
 
 <label for="plainText">평문</label><br />
@@ -52,7 +55,9 @@
     <div class="header">
         <p id="room_name" th:text="${room_name}" type="text"></p>
     </div>
-
+    <div>
+        <button id="sendEncryptionKey">E2EE</button>
+    </div>
     <div class="content"  border = "red">
         <table id="msg_box" width="500px" border="red">
 
@@ -76,7 +81,7 @@
 
     let msgEncrypt = new JSEncrypt();
     let msgDecrypt = new JSEncrypt();
-
+    let keyOn = false;
     let chatMessage = {
         sender : "",
         message : "",
@@ -90,6 +95,18 @@
     let PubFile = document.getElementById("publicKey");
     let submitPri = document.getElementById("createPriKey");
     let submitPub = document.getElementById("createPubKey");
+    submitPub.addEventListener("click",function(){
+        let items='';
+        let reader = new FileReader();
+        let data = PubFile.files[0];
+        reader.addEventListener("load",function(){
+            pubKey.value=reader.result;
+        })
+        reader.addEventListener("error",function(){
+            console.log(reader.error.message);
+        })
+        reader.readAsText(data);
+    });
     submitPri.addEventListener("click",function(){
         let items='';
         let reader = new FileReader();
@@ -102,18 +119,7 @@
         })
         reader.readAsText(data);
     });
-    submitPub.addEventListener("click",function(){
-        let items='';
-        let reader = new FileReader();
-        let data = PubFile.files[0];
-        reader.addEventListener("load",function(){
-            pubKey.value=reader.result;
 
-        })
-        reader.addEventListener("error",function(){
-            console.log(reader.error.message);
-        })
-    });
     document.getElementById("encrypt").addEventListener("click",function(){
         let crypt = new JSEncrypt();
         crypt.setPublicKey(pubKey.value);
@@ -124,6 +130,7 @@
     })
     document.getElementById("decrypt").addEventListener("click",function(){
         let crypt = new JSEncrypt();
+
         crypt.setPrivateKey(priKey.value);
         let encryptedText= document.getElementById("encryptedText").value;
         let decryptedText= crypt.decrypt(encryptedText);
@@ -157,6 +164,10 @@
             sendMessage(sendMsg.value);
         })
 
+        document.getElementById("sendEncryptionKey").addEventListener('click',function(event){
+            msgDecrypt.setPrivateKey(priKey.value);
+            sendEncryptionKey(pubKey.value);
+        })
         function onConnected() {
             stompClient.subscribe('/topic/'+receiver, responseMessage); // subscribe 파라미터 : 1. 구독할 토픽 url 2. 콜백메소드
             stompClient.subscribe('topic/'+sender, responseMy);
@@ -176,6 +187,10 @@
             chatMessage.message = msg;
             chatMessage.type = "Chat";
             chatMessage.receiver = receiver;
+            if(keyOn === true){
+                let encMsg=msgEncrypt.encrypt(msg);
+                chatMessage.message=encMsg;
+            }
             let cmsg= JSON.stringify(chatMessage);
 
             stompClient.send("/app/chat.send", {"Type" : "Send"}, cmsg);
@@ -189,7 +204,7 @@
             chatMessage.receiver = receiver;
             let cmsg =JSON.stringify(chatMessage);
 
-            stompClient.send("/app/chat.send", {"Type" : "Key"},cmsg);
+            stompClient.send("/app/key.send", {"Type" : "Key"},cmsg);
             console.log("key");
 
         }
@@ -207,19 +222,31 @@
             let parentTbody = document.getElementById("msg_box");
             let addBox=document.createElement("tr");
             let data=JSON.parse(response.body);
-            if(data.type=="Enter"){
-                //스타일 변경 중앙정렬
+            if(data.type == "key") {
+                console.log(data.message);
+                yourPub.value = data.message;
+
+                msgEncrypt.setPublicKey(yourPub.value);
+                keyOn=true;
+                console.log(keyOn);
+            }else {
+                if(keyOn===true){
+                    data.message=msgDecrypt.decrypt(data.message);
+                }
+                if (data.type == "Enter") {
+                    //스타일 변경 중앙정렬
+                }
+                if (data.sender == sender) {
+                    console.log("me");
+                    //스타일 변경
+                }
+                addSender.innerHTML = data.sender;
+                addMsg.innerHTML = data.message;
+                addMsg.style.color = "red";
+                parentTbody.appendChild(addBox);
+                parentTbody.appendChild(addSender);
+                parentTbody.appendChild(addMsg);
             }
-            if(data.sender==sender){
-                console.log("me");
-                //스타일 변경
-            }
-            addSender.innerHTML = data.sender;
-            addMsg.innerHTML = data.message;
-            addMsg.style.color="red";
-            parentTbody.appendChild(addBox);
-            parentTbody.appendChild(addSender);
-            parentTbody.appendChild(addMsg);
 
             console.log("수신");
         }
@@ -231,6 +258,9 @@
             let parentTbody = document.getElementById("msg_box");
             let addBox=document.createElement("tr");
             let data=JSON.parse(response.body);
+            if(keyOn===true){
+                data.message=msgDecrypt.decrypt(data.message);
+            }
             if(data.type=="Enter"){
                 //스타일 변경 중앙정렬
             }
