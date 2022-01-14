@@ -34,8 +34,11 @@
 ![image](https://user-images.githubusercontent.com/48385816/149458320-97e8e91f-5760-479d-bdf2-ff9736c13090.png)
 
 로컬에서 해당 Command Shell 실행 -> public,private key생성됨
+
 E2EE 버튼 클릭시, Public Key 교환.
+
 메시지 입력, 전송
+
 수신시, 자신의 PrivateKey로 복호화.
 
 
